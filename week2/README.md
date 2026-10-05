@@ -26,3 +26,4 @@
 ## Задание 1
 
 Срок — две недели. Условия и рубрика: [assignment.md](assignment.md).
+Код, запуск и **отчёт с метриками**: [assignment/report.md](assignment/report.md).
