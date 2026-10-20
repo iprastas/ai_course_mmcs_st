@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Городская справочная Ростова</title>
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+
+  <!-- ЭКРАН ВХОДА -->
+  <div id="login-screen" class="login-wrap hidden">
+    <form id="login-form" class="login-card">
+      <h1>🏙 Городская справочная</h1>
+      <p class="muted">Справка по 8860 местам Ростова-на-Дону</p>
+      <label>Логин <input id="login-name" autocomplete="username" required></label>
+      <label>Пароль <input id="login-pass" type="password" autocomplete="current-password" required></label>
+      <div id="login-error" class="error hidden"></div>
+      <button type="submit" class="btn primary">Войти</button>
+    </form>
+  </div>
+
+  <!-- ПРИЛОЖЕНИЕ -->
+  <div id="app" class="hidden">
+    <header class="topbar">
+      <div class="brand">🏙 Городская справочная <span class="muted">Ростов-на-Дону</span></div>
+      <div class="topbar-right">
+        <span id="who" class="chip"></span>
+        <span id="usage-badge" class="chip hidden" title="Последний прогон"></span>
+        <button id="btn-reset" class="btn ghost" title="Очистить диалог и контекст">Новый диалог</button>
+        <button id="btn-logout" class="btn ghost">Выйти</button>
+      </div>
+    </header>
+
+    <main class="layout">
+      <!-- ЧАТ -->
+      <section class="panel chat-panel">
+        <div id="chat" class="chat">
+          <div class="msg assistant">
+            <div class="bubble">Привет! Спрашивай про места Ростова: «сколько аптек»,
+            «что открыто на Пушкинской», «где поесть пельмени» — для последнего
+            я найду по смыслу.</div>
+          </div>
+        </div>
+        <form id="ask-form" class="ask-form">
+          <textarea id="question" rows="1" placeholder="Задайте вопрос… (Enter — отправить, Shift+Enter — перенос)"
+                    required></textarea>
+          <button id="btn-ask" type="submit" class="btn primary">Спросить</button>
+        </form>
+        <div id="status" class="status hidden">Агент думает<span class="dots"><i>.</i><i>.</i><i>.</i></span></div>
+      </section>
+
+      <!-- ПРАВАЯ КОЛОНКА -->
+      <aside class="side">
+        <section class="panel">
+          <h2>🔍 Найти по смыслу</h2>
+          <input id="search-q" placeholder="пельмени, кофе с завтраком…">
+          <div id="search-results" class="search-results muted">введите фразу — вернётся топ по косинусу</div>
+        </section>
+
+        <section class="panel grow">
+          <h2>🧠 Как думает агент <span id="stream-count" class="muted small"></span></h2>
+          <div id="stream" class="stream">
+            <div class="muted small">здесь появятся шаги: мысли → вызовы инструментов → результаты</div>
+          </div>
+        </section>
+
+        <section class="panel">
+          <h2 id="ctx-head">📚 Контекст диалога <span id="ctx-count" class="muted small">0</span></h2>
+          <div id="context" class="context muted small">история пуста</div>
+        </section>
+      </aside>
+    </main>
+  </div>
+
+  <script src="/static/app.js"></script>
+</body>
+</html>

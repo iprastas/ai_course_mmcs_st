@@ -14,3 +14,7 @@ wheels/
 
 # Jupyter
 .ipynb_checkpoints/
+
+# Векторный индекс (строится скриптом, 40 МБ)
+week2/app/vectors.sqlite
+
