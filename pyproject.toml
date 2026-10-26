@@ -11,7 +11,14 @@ dependencies = [
     "openai-agents>=0.22.3",
     "pydantic>=2.13.5",
     "python-dotenv>=1.2.3",
+    "sqlalchemy[asyncio]>=2.1.5",
     "sqlite-vec>=0.1.9",
+    # веб-приложение week2/app: объявляем явно, не полагаясь на транзитивные
+    # зависимости google-adk (fastapi/uvicorn/aiosqlite входят в его Requires-Dist,
+    # но прямая зависимость защищает от смены состава ADK)
+    "fastapi>=0.115",
+    "uvicorn>=0.30",
+    "aiosqlite>=0.20",
 ]
 
 [dependency-groups]

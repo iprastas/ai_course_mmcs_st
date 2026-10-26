@@ -1,10 +1,12 @@
-<!DOCTYPE html>
-<html lang="ru">
+﻿<!DOCTYPE html>
+<html lang="ru" data-theme="dark">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Городская справочная Ростова</title>
-  <link rel="stylesheet" href="/static/style.css">
+  <link rel="icon" href="/static/favicon.svg?v=3" type="image/svg+xml">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+  <link rel="stylesheet" href="/static/style.css?v=4">
 </head>
 <body>
 
@@ -13,10 +15,14 @@
     <form id="login-form" class="login-card">
       <h1>🏙 Городская справочная</h1>
       <p class="muted">Справка по 8860 местам Ростова-на-Дону</p>
-      <label>Логин <input id="login-name" autocomplete="username" required></label>
-      <label>Пароль <input id="login-pass" type="password" autocomplete="current-password" required></label>
+      <label>Логин <input id="login-name" autocomplete="username" maxlength="32" required></label>
+      <label>Пароль <input id="login-pass" type="password" autocomplete="current-password" maxlength="128" required></label>
+      <label id="login-confirm-row" class="hidden">Повторите пароль
+        <input id="login-confirm" type="password" autocomplete="new-password" maxlength="128"></label>
       <div id="login-error" class="error hidden"></div>
-      <button type="submit" class="btn primary">Войти</button>
+      <button type="submit" class="btn primary" id="login-submit">Войти</button>
+      <button type="button" id="btn-demo" class="btn ghost">Демо-вход</button>
+      <button type="button" id="btn-toggle-register" class="link-btn">Нет аккаунта? Регистрация</button>
     </form>
   </div>
 
@@ -27,26 +33,46 @@
       <div class="topbar-right">
         <span id="who" class="chip"></span>
         <span id="usage-badge" class="chip hidden" title="Последний прогон"></span>
-        <button id="btn-reset" class="btn ghost" title="Очистить диалог и контекст">Новый диалог</button>
+        <a class="btn ghost" href="/stats" title="Метрики задания: pass@1, A/B">📊 Метрики</a>
+        <button id="btn-export" class="btn ghost" title="Скачать диалог в Markdown">⤓ Экспорт</button>
+        <button id="btn-theme" class="btn ghost" title="Сменить тему">☀️</button>
+        <button id="btn-reset" class="btn ghost" title="Начать новый диалог в отдельном чате">Новый диалог</button>
         <button id="btn-logout" class="btn ghost">Выйти</button>
       </div>
     </header>
 
     <main class="layout">
+      <!-- САЙДБАР ДИАЛОГОВ -->
+      <nav class="panel chats-panel" id="chats-panel">
+        <h2>💬 Диалоги</h2>
+        <button id="btn-new-chat" class="btn primary" type="button">+ Новый чат</button>
+        <div id="chat-list" class="chat-list"></div>
+      </nav>
+
       <!-- ЧАТ -->
       <section class="panel chat-panel">
         <div id="chat" class="chat">
           <div class="msg assistant">
             <div class="bubble">Привет! Спрашивай про места Ростова: «сколько аптек»,
             «что открыто на Пушкинской», «где поесть пельмени» — для последнего
-            я найду по смыслу.</div>
+            я найду по смыслу и покажу точки на карте.</div>
           </div>
         </div>
         <form id="ask-form" class="ask-form">
-          <textarea id="question" rows="1" placeholder="Задайте вопрос… (Enter — отправить, Shift+Enter — перенос)"
+          <textarea id="question" rows="1" maxlength="2000"
+                    placeholder="Задайте вопрос… (Enter — отправить, Shift+Enter — перенос)"
                     required></textarea>
           <button id="btn-ask" type="submit" class="btn primary">Спросить</button>
         </form>
+        <div class="chips" id="chips">
+          <button type="button" class="chip-btn">Сколько в городе аптек?</button>
+          <button type="button" class="chip-btn">Где поесть пельмени?</button>
+          <button type="button" class="chip-btn">Что открыто на Пушкинской?</button>
+          <button type="button" class="chip-btn">Ближайшая кофейня к 47.2357, 39.7015</button>
+          <button type="button" class="chip-btn">Какие сети пунктов выдачи чаще?</button>
+        </div>
+        <div class="chips followups hidden" id="followups"
+             title="Могу продолжить — выбери вопрос"></div>
         <div id="status" class="status hidden">Агент думает<span class="dots"><i>.</i><i>.</i><i>.</i></span></div>
       </section>
 
@@ -56,6 +82,16 @@
           <h2>🔍 Найти по смыслу</h2>
           <input id="search-q" placeholder="пельмени, кофе с завтраком…">
           <div id="search-results" class="search-results muted">введите фразу — вернётся топ по косинусу</div>
+        </section>
+
+        <section class="panel map-panel">
+          <h2>📍 Запрошенные места <span id="map-count" class="muted small"></span></h2>
+          <div id="map"></div>
+          <div class="map-layers" id="map-layers">
+            <button type="button" class="chip-btn active" data-layer="streets">🗺 Улицы</button>
+            <button type="button" class="chip-btn" data-layer="satellite">🛰 Спутник</button>
+            <button type="button" class="chip-btn" data-layer="topo">⛰ Топо</button>
+          </div>
         </section>
 
         <section class="panel grow">
@@ -73,6 +109,20 @@
     </main>
   </div>
 
-  <script src="/static/app.js"></script>
+  <!-- МОДАЛЬНОЕ ОКНО (подтверждения, переименование, ошибки) -->
+  <dialog id="modal" class="modal">
+    <div class="modal-card">
+      <h3 id="modal-title"></h3>
+      <p id="modal-text"></p>
+      <input id="modal-input" class="hidden" maxlength="80">
+      <div class="modal-actions">
+        <button type="button" id="modal-cancel" class="btn ghost">Отмена</button>
+        <button type="button" id="modal-ok" class="btn primary">OK</button>
+      </div>
+    </div>
+  </dialog>
+
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="/static/app.js?v=4"></script>
 </body>
 </html>

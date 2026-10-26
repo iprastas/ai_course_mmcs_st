@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="ru" data-theme="dark">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Метрики — Городская справочная Ростова</title>
+  <link rel="icon" href="/static/favicon.svg?v=3" type="image/svg+xml">
+  <link rel="stylesheet" href="/static/style.css?v=3">
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">📊 Метрики задания 1</div>
+    <div class="topbar-right">
+      <a class="btn ghost" href="/">← к агенту</a>
+      <button id="btn-theme" class="btn ghost">☀️</button>
+    </div>
+  </header>
+
+  <main class="stats-wrap">
+    <p class="muted" id="gen-at">загружаю…</p>
+
+    <section class="panel">
+      <h2>Основной прогон — 10 задач × 3 прогона (вариант full)</h2>
+      <div id="main-box" class="stats-box">нет данных</div>
+    </section>
+
+    <section class="panel">
+      <h2>A/B описаний инструментов: short (одна фраза) против full</h2>
+      <div id="ab-box" class="stats-box">нет данных</div>
+      <div id="verdict" class="verdict hidden"></div>
+    </section>
+
+    <p class="muted small">Источник — журналы <code>week2/assignment/runs/*.jsonl</code>:
+      те же файлы, что считает <code>uv run python check.py</code>. Интервалы — Вильсон 95%.</p>
+  </main>
+
+  <script>
+    const $ = (id) => document.getElementById(id);
+    const pct = (x) => (x * 100).toFixed(1) + "%";
+    const ci = (a) => `[${a[0].toFixed(2)}, ${a[1].toFixed(2)}]`;
+
+    function table(rows) {
+      return "<table><thead><tr><th>показатель</th><th>значение</th></tr></thead><tbody>" +
+        rows.map(([k, v]) => `<tr><td>${k}</td><td>${v}</td></tr>`).join("") +
+        "</tbody></table>";
+    }
+
+    function applyTheme(t) {
+      document.documentElement.dataset.theme = t;
+      $("btn-theme").textContent = t === "dark" ? "☀️" : "🌙";
+      localStorage.setItem("theme", t);
+    }
+    $("btn-theme").addEventListener("click", () =>
+      applyTheme(document.documentElement.dataset.theme === "dark" ? "light" : "dark"));
+    applyTheme(localStorage.getItem("theme") || "dark");
+
+    (async () => {
+      const r = await fetch("/api/metrics");
+      if (r.status === 401) {
+        $("gen-at").innerHTML = 'Нужно <a href="/">войти</a> — метрики доступны после входа.';
+        return;
+      }
+      const m = await r.json();
+      $("gen-at").textContent = "Сформировано: " + m.generated_at;
+
+      if (m.main.summary) {
+        const s = m.main.summary;
+        $("main-box").innerHTML = table([
+          ["pass@1", `<strong>${pct(s.pass_at_1)}</strong> (${s.pass_at_1_n}/${s.runs} прогонов)`],
+          ["pass^3", `<strong>${pct(s.pass_k)}</strong> (${s.pass_k_solved}/${s.tasks} задач со всеми 3)`],
+          ["первый вызов верен", `${pct(s.tool_ok)} (${s.tool_ok_n}/${s.runs}), Вильсон ${ci(s.tool_ok_ci)}`],
+          ["средние токены на прогон", `${s.avg_tokens}`],
+          ["средняя стоимость прогона", `${s.avg_cost} ₽ (задача ≈ ${(s.avg_cost * 3).toFixed(2)} ₽)`],
+          ["средние шаги", `${s.avg_steps} (лимит 8)`],
+          ["ошибки среды / лимит шагов", `${s.errors} / ${s.max_steps}`],
+          ["журнал", `<code>${m.main.file}</code>`],
+        ]);
+      } else {
+        $("main-box").textContent = "нет журнала: запусти uv run python check.py --n 3";
+      }
+
+      if (m.ab.short && m.ab.full) {
+        const s = m.ab.short, f = m.ab.full, d = m.ab.delta;
+        $("ab-box").innerHTML = `
+          <table><thead><tr><th>показатель</th><th>short</th><th>full</th><th>Δ</th></tr></thead><tbody>
+          <tr><td>точность первого вызова</td>
+              <td>${pct(s.tool_ok)} (${s.tool_ok_n}/${s.runs})</td>
+              <td><strong>${pct(f.tool_ok)}</strong> (${f.tool_ok_n}/${f.runs})</td>
+              <td>${d.acc_pp > 0 ? "+" : ""}${d.acc_pp} п.п.</td></tr>
+          <tr><td>интервал Вильсона 95%</td><td>${ci(s.tool_ok_ci)}</td><td>${ci(f.tool_ok_ci)}</td>
+              <td>${m.ab.overlap ? "перекрываются" : "не перекрываются ✓"}</td></tr>
+          <tr><td>pass@1</td><td>${pct(s.pass_at_1)}</td><td>${pct(f.pass_at_1)}</td>
+              <td>${d.pass_pp > 0 ? "+" : ""}${d.pass_pp} п.п.</td></tr>
+          <tr><td>средние токены</td><td>${s.avg_tokens}</td><td>${f.avg_tokens}</td>
+              <td>${d.tokens > 0 ? "+" : ""}${d.tokens}</td></tr>
+          <tr><td>стоимость прогона, ₽</td><td>${s.avg_cost}</td><td>${f.avg_cost}</td>
+              <td>${d.cost > 0 ? "+" : ""}${d.cost}</td></tr>
+          </tbody></table>`;
+        const v = $("verdict");
+        v.classList.remove("hidden");
+        v.innerHTML = `<strong>Окупились ли лишние токены:</strong> ${m.ab.verdict}`;
+      } else {
+        $("ab-box").textContent = "нет журнала A/B: запусти uv run python check.py --ab --n 3";
+      }
+    })();
+  </script>
+</body>
+</html>
