@@ -6,7 +6,7 @@
   <title>Городская справочная Ростова</title>
   <link rel="icon" href="/static/favicon.svg?v=3" type="image/svg+xml">
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
-  <link rel="stylesheet" href="/static/style.css?v=4">
+  <link rel="stylesheet" href="/static/style.css?v=6">
 </head>
 <body>
 
@@ -84,6 +84,13 @@
           <div id="search-results" class="search-results muted">введите фразу — вернётся топ по косинусу</div>
         </section>
 
+        <section class="panel grow">
+          <h2>🧠 Как думает агент <span id="stream-count" class="muted small"></span></h2>
+          <div id="stream" class="stream">
+            <div class="muted small">здесь появятся шаги: мысли → вызовы инструментов → результаты</div>
+          </div>
+        </section>
+
         <section class="panel map-panel">
           <h2>📍 Запрошенные места <span id="map-count" class="muted small"></span></h2>
           <div id="map"></div>
@@ -91,13 +98,6 @@
             <button type="button" class="chip-btn active" data-layer="streets">🗺 Улицы</button>
             <button type="button" class="chip-btn" data-layer="satellite">🛰 Спутник</button>
             <button type="button" class="chip-btn" data-layer="topo">⛰ Топо</button>
-          </div>
-        </section>
-
-        <section class="panel grow">
-          <h2>🧠 Как думает агент <span id="stream-count" class="muted small"></span></h2>
-          <div id="stream" class="stream">
-            <div class="muted small">здесь появятся шаги: мысли → вызовы инструментов → результаты</div>
           </div>
         </section>
 
@@ -123,6 +123,6 @@
   </dialog>
 
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-  <script src="/static/app.js?v=4"></script>
+  <script src="/static/app.js?v=6"></script>
 </body>
 </html>

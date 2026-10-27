@@ -285,6 +285,21 @@ async def _ask_sse(login: str, question: str,
     slot_acquired = False
     wait_started = time.monotonic()
     try:
+        # модерация темы — ДО очереди и создания сессии: вопрос мимо городской
+        # справочной получает вежливый отказ без запуска агента/инструментов
+        # и без создания чата. Работает детерминированно (словарь) плюс
+        # дешёвый LLM-модератор — см. agent.check_topic
+        if not await agent_mod.check_topic(question):
+            def sse(payload: dict) -> str:
+                return f"data: {json.dumps(payload, ensure_ascii=False)}\n\n"
+
+            yield sse({"type": "start", "question": question, "t": 0})
+            yield sse({"type": "final", "answer": agent_mod.OFFTOPIC_ANSWER,
+                       "agent": agent_mod.COORDINATOR_NAME,
+                       "refusal": True, "t": 0})
+            yield sse({"type": "usage", "steps": 0, "input_tokens": 0,
+                       "output_tokens": 0, "cost_rub": 0, "seconds": 0, "t": 0})
+            return
         if _runs_active >= MAX_RUNS:
             yield f"data: {json.dumps({'type': 'wait', 'active': _runs_active, 'limit': MAX_RUNS}, ensure_ascii=False)}\n\n"
         await _run_slots.acquire()

@@ -117,7 +117,7 @@ code { background: var(--panel2); border: 1px solid var(--line); border-radius: 
   padding: 14px; display: flex; flex-direction: column; min-height: 0;
 }
 .panel h2 { margin: 0 0 10px; font-size: 14px; color: var(--muted); font-weight: 600; }
-.grow { flex: 1; min-height: 0; }
+.grow { flex: 1 1 320px; min-height: 320px; }
 
 /* ——— сайдбар диалогов ——— */
 .chats-panel #btn-new-chat { width: 100%; margin-bottom: 10px; }
@@ -195,12 +195,17 @@ code { background: var(--panel2); border: 1px solid var(--line); border-radius: 
 @keyframes blink { 0%, 60%, 100% { opacity: .2 } 30% { opacity: 1 } }
 
 /* ——— лента «как думает» ——— */
-.side { display: flex; flex-direction: column; gap: 14px; min-height: 0; }
+.side {
+  display: flex; flex-direction: column; gap: 14px; min-height: 0;
+  overflow-y: auto;                     /* не хватает места — колонка скроллится */
+}
+/* соседи ленты не сжимают её: карта/поиск/контекст занимают свой контент */
+.side > .panel:not(.grow) { flex: 0 0 auto; }
 .stream { flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; }
 .step {
   border: 1px solid var(--line); border-left-width: 4px; border-radius: 8px;
   background: var(--panel2); padding: 8px 10px; font-size: 13.5px;
-  animation: appear .18s ease-out; cursor: pointer;
+  animation: appear .18s ease-out;
 }
 @keyframes appear { from { opacity: 0; transform: translateY(4px) } to { opacity: 1 } }
 .step.think { border-left-color: var(--accent2); color: #cfc6ff; }
@@ -218,18 +223,13 @@ code { background: var(--panel2); border: 1px solid var(--line); border-radius: 
   border-radius: 4px; padding: 1px 4px; margin-left: 5px; opacity: 1;
   vertical-align: -1px;
 }
-.step pre { margin: 6px 0 0; white-space: pre-wrap; word-break: break-word; font-size: 12.5px; display: none; }
-.step.open pre { display: block; }
+.step pre { margin: 6px 0 0; white-space: pre-wrap; word-break: break-word; font-size: 12.5px; }
 .step .hint { font-size: 11px; color: var(--muted); }
-.step.think .body {
-  display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical;
-  overflow: hidden; white-space: pre-wrap;
-}
-.step.think.open .body { display: block; -webkit-line-clamp: unset; overflow: visible; }
+.step.think .body { white-space: pre-wrap; }
 
 /* ——— карта ——— */
 .map-panel #map {
-  height: 240px; border-radius: 8px; border: 1px solid var(--line);
+  height: 200px; border-radius: 8px; border: 1px solid var(--line);
   background: var(--panel2); z-index: 0;
 }
 .leaflet-container { font: inherit; }
@@ -252,9 +252,9 @@ code { background: var(--panel2); border: 1px solid var(--line); border-radius: 
 }
 
 /* ——— контекст и поиск ——— */
-.context { max-height: 130px; overflow-y: auto; }
+.context { max-height: 100px; overflow-y: auto; }
 .context .line { padding: 2px 0; border-bottom: 1px dashed var(--line); }
-.search-results { margin-top: 10px; max-height: 220px; overflow-y: auto; font-size: 13.5px; }
+.search-results { margin-top: 10px; max-height: 170px; overflow-y: auto; font-size: 13.5px; }
 .hit { display: flex; justify-content: space-between; gap: 8px; padding: 6px 0; border-bottom: 1px dashed var(--line); }
 .hit .score { color: var(--accent); font-variant-numeric: tabular-nums; }
 .hit .sub { color: var(--muted); font-size: 12px; }

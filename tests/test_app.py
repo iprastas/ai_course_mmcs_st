@@ -183,6 +183,35 @@ def test_history_legacy_author_answers_not_questions(monkeypatch) -> None:
                    and "Нашёл" in e.get("text", "") for e in out)
 
 
+def test_offtopic_detector_hits_and_misses() -> None:
+    """Словарный отсев мимо-темы: ловит явное, не трогает вопросы о местах."""
+    for q in ("напиши калькулятор на питон", "сделай калькулятор",
+              "напиши стихотворение про Ростов", "реши уравнение x^2 = 4",
+              "переведи текст на английский", "исправь ошибку в коде"):
+        assert app_agent.offtopic_hit(q), q
+    for q in ("сколько аптек в Ростове?", "где поесть пельмени?",
+              "что открыто на Пушкинской улице?", "ближайшая кофейня к 47.2357, 39.7015"):
+        assert not app_agent.offtopic_hit(q), q
+
+
+def test_clean_answer_strips_tech_params() -> None:
+    """Служебные аргументы инструментов не должны светиться в ответе:
+    «кафе (kind=cafe)» → «кафе» (страховка поверх инструкции «по-русски»)."""
+    raw = ("На улице Зорге найдено 4 кафе (kind=cafe): «Еда всегда» (д. 26). "
+           "Итого — 4 кафе.")
+    out = app_agent._clean_answer(raw)
+    assert "kind=" not in out
+    assert "«Еда всегда» (д. 26)" in out
+    assert app_agent._clean_answer("24/7 (only_24_7=True) круглосуточно") == \
+        "24/7 круглосуточно"
+    assert app_agent._clean_answer("найдено kind=cafe 4 шт.") == "найдено 4 шт."
+    # _final_answer тоже чистит текст
+    final = _event([_part("Найдено 4 кафе (kind=cafe)")],
+                   author=app_agent.COORDINATOR_NAME)
+    assert app_agent._final_answer(SimpleNamespace(events=[final])) == \
+        "Найдено 4 кафе"
+
+
 def test_journal_counts_steps_from_both_agents(tmp_path, monkeypatch) -> None:
     """steps — по событиям обоих агентов, а не только корневого."""
     monkeypatch.setattr(app_agent, "RUNS_DIR", tmp_path)
@@ -654,6 +683,16 @@ def test_stats_summarize_and_ab(tmp_path, monkeypatch) -> None:
 
 # ─────────────── HTTP-слой ───────────────
 
+@pytest.fixture(autouse=True)
+def _stub_topic_check(monkeypatch):
+    """Модератор темы в тестах не ходит в сеть: действует словарный отсев
+    (offtopic_hit), LLM-часть отключена — тесты детерминированы и бесплатны."""
+    async def _topic_ok(question):
+        return not app_agent.offtopic_hit(question)
+
+    monkeypatch.setattr(app_agent, "check_topic", _topic_ok)
+
+
 @pytest.fixture()
 def client(auth_db, tmp_path, monkeypatch):
     from fastapi.testclient import TestClient
@@ -742,6 +781,30 @@ def test_ask_stream_releases_user_lock(client, monkeypatch) -> None:
     r2 = client.post("/api/ask", json={"question": "второй"})
     assert r2.status_code == 200, "лок не снят после первого прогона"
     assert '"final"' in r2.text
+
+
+def test_ask_refuses_offtopic_without_agent(client, monkeypatch) -> None:
+    """Вопрос мимо темы: вежливый отказ без запуска агента и без чата.
+
+    Регрессия: правило «отвечай только про места» в промпте координатора —
+    вероятностное, модель его игнорировала («напиши калькулятор» → калькулятор).
+    Теперь отказ отдаёт модератор ДО прогонов."""
+    import week2.app.main as main_mod
+    called = {"n": 0}
+
+    async def fake_ask(*args, **kwargs):
+        called["n"] += 1
+        yield {"type": "final", "answer": "сюда не должно дойти"}
+
+    monkeypatch.setattr(main_mod.agent_mod, "ask", fake_ask)
+    client.post("/login", json={"login": "tester", "password": "secret"})
+    r = client.post("/api/ask", json={"question": "напиши калькулятор на питон"})
+    assert r.status_code == 200
+    assert "городская справочная" in r.text
+    assert '"refusal": true' in r.text
+    assert called["n"] == 0, "агент не должен запускаться для мимо-темы"
+    # чат для отказа не создаётся
+    assert client.get("/api/chats").json()["chats"] == []
 
 
 # ─────────────── мультичаты ───────────────

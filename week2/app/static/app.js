@@ -9,6 +9,7 @@ let chatLog = [];            // для экспорта диалога
 let answerEl = null;         // текущий пузырь стримящегося ответа
 let answerRaw = "";          // его сырой markdown (для chatLog/final)
 let lastFinalAnswer = "";    // последний финал — для follow-up вопросов
+let lastWasRefusal = false;  // модератор отклонил вопрос — follow-up не нужен
 
 // экранирование HTML: спецсимволы заменяются на числовые сущности (код символа)
 const esc = (s) => String(s ?? "")
@@ -215,10 +216,10 @@ function addStep(cls, tag, bodyHtml, preText, tSec, agent) {
   const div = document.createElement("div");
   div.className = "step " + cls;
   const time = tSec !== undefined ? ` <span class="t">+${tSec}с</span>` : "";
+  // лента «как думает агент» всегда развёрнута полностью: и мысли, и JSON
   div.innerHTML = `<span class="tag">${tag}${agentBadge(agent)}${time}</span>` +
     `<div class="body">${bodyHtml}</div>` +
-    (preText ? `<pre>${esc(preText)}</pre><span class="hint">нажми, чтобы развернуть</span>` : "");
-  div.addEventListener("click", () => div.classList.toggle("open"));
+    (preText ? `<pre>${esc(preText)}</pre>` : "");
   $("stream").appendChild(div);
   $("stream").scrollTop = $("stream").scrollHeight;
   $("stream-count").textContent = "· шагов: " + document.querySelectorAll("#stream .step").length;
@@ -307,6 +308,7 @@ function renderEvent(ev) {
         appendChat("assistant", renderMd(answer), answer);
       }
       lastFinalAnswer = answer;
+      lastWasRefusal = !!ev.refusal;
       pushCtx("Ответ: " + answer.replace(/\s+/g, " ").slice(0, 70) + "…");
       break;
     }
@@ -484,6 +486,7 @@ async function ask(question) {
   setStreaming(true);   // ещё раз: clearStream мог снять индикаторы
   answerRaw = "";
   lastFinalAnswer = "";
+  lastWasRefusal = false;
   $("followups").classList.add("hidden");
   $("followups").innerHTML = "";
   let completed = false;
@@ -535,7 +538,8 @@ async function ask(question) {
     loadChats();                     // автотайтл и время чата обновились
   }
   // продолжения диалога: fire-and-forget, при ошибке просто не покажутся
-  if (completed && lastFinalAnswer) {
+  // (на отказе модератора чипы не предлагаем)
+  if (completed && lastFinalAnswer && !lastWasRefusal) {
     requestFollowups(question, lastFinalAnswer);
   }
 }
